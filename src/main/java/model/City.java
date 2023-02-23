@@ -1,15 +1,15 @@
 package model;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.*;
 
-@Entity
-@Data
-@Table(name = "city")
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
+@ToString
 public class City {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "city_id")
+
     private Long id;
 
     @Column(name = "city_name", nullable = false)
