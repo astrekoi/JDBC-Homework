@@ -14,9 +14,5 @@ public class City {
 
     @Column(name = "city_name", nullable = false)
     private String name;
-
-    public City(Long id) {
-        this.id = id;
-    }
 }
 
