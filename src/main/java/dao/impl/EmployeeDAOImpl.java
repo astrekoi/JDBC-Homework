@@ -1,95 +1,101 @@
 package dao.impl;
 
 import dao.EmployeeDAO;
-import jbdc.ConnectionManager;
 import model.City;
 import model.Employee;
+import util.HibernateUtil;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
+import javax.persistence.EntityManager;
+import javax.persistence.EntityManagerFactory;
+import javax.persistence.EntityTransaction;
 import java.util.List;
 
-
 public class EmployeeDAOImpl implements EmployeeDAO {
+    private final EntityManagerFactory emf;
 
-    private static final String FIND_ALL = "SELECT * FROM employee INNER JOIN city ON employee.city_id=city.city_id";
-    private static final String INSERT = "INSERT INTO employee (id, first_name, last_name, gender, age, city_id) VALUES (?, ?, ?, ?, ?, ?)";
-    private static final String FIND_BY_ID = "SELECT * FROM employee INNER JOIN city ON employee.city_id=city.city_id AND employee.id=?";
-    private static final String UPDATE = "UPDATE employee SET first_name=? WHERE id=?";
-    private static final String DELETE = "DELETE FROM employee WHERE id=?";
-
-    @Override
-    public void createEmployee(Employee employee) throws SQLException {
-        try (Connection connection = ConnectionManager.getConnection();
-             PreparedStatement statement = connection.prepareStatement(INSERT)) {
-            statement.setLong(1, employee.getId());
-            statement.setString(2, employee.getFirstName());
-            statement.setString(3, employee.getLastName());
-            statement.setString(4, employee.getGender());
-            statement.setInt(5, employee.getAge());
-            statement.setLong(6, employee.getCityId().getId());
-            statement.executeUpdate();
-        }
+    public EmployeeDAOImpl() throws Exception {
+        emf = HibernateUtil.getEntityManagerFactory();
     }
 
     @Override
-    public Employee getEmployeeById(Long id) throws SQLException {
-        try (Connection connection = ConnectionManager.getConnection();
-             PreparedStatement statement = connection.prepareStatement(FIND_BY_ID)) {
-            statement.setLong(1, id);
-            ResultSet resultSet = statement.executeQuery();
-            if (resultSet.next()) {
-                return createEmployeeFromResultSet(resultSet);
-            } else {
-                return null;
+    public void createEmployee(Employee employee) {
+        EntityManager em = emf.createEntityManager();
+        EntityTransaction tx = em.getTransaction();
+        try {
+            tx.begin();
+            City city = em.merge(employee.getCity());
+            employee.setCity(city);
+            em.persist(employee);
+            tx.commit();
+        } catch (Exception e) {
+            if (tx != null && tx.isActive()) {
+                tx.rollback();
             }
+            throw e;
+        } finally {
+            em.close();
         }
     }
 
     @Override
-    public List<Employee> getAllEmployees() throws SQLException {
-        List<Employee> employees = new ArrayList<>();
-        try (Connection connection = ConnectionManager.getConnection();
-             PreparedStatement statement = connection.prepareStatement(FIND_ALL)) {
-            ResultSet resultSet = statement.executeQuery();
-            while (resultSet.next()) {
-                employees.add(createEmployeeFromResultSet(resultSet));
+    public Employee getEmployeeById(Long id) {
+        EntityManager em = emf.createEntityManager();
+        try {
+            Employee employee = em.find(Employee.class, id);
+            return employee;
+        } finally {
+            em.close();
+        }
+    }
+
+    @Override
+    public List<Employee> getAllEmployees() {
+        EntityManager em = emf.createEntityManager();
+        try {
+            List<Employee> employees = em.createQuery("SELECT e FROM Employee e LEFT JOIN FETCH e.city", Employee.class)
+                    .getResultList();
+            return employees;
+        } finally {
+            em.close();
+        }
+    }
+
+    @Override
+    public void updateEmployee(Employee employee) {
+        EntityManager em = emf.createEntityManager();
+        EntityTransaction tx = em.getTransaction();
+        try {
+            tx.begin();
+            City city = em.merge(employee.getCity());
+            employee.setCity(city);
+            em.merge(employee);
+            tx.commit();
+        } catch (Exception e) {
+            if (tx != null && tx.isActive()) {
+                tx.rollback();
             }
-        }
-        return employees;
-    }
-
-    @Override
-    public void updateEmployee(Employee employee) throws SQLException {
-        try (Connection connection = ConnectionManager.getConnection();
-             PreparedStatement statement = connection.prepareStatement(UPDATE)) {
-            statement.setString(1, employee.getFirstName());
-            statement.setLong(2, employee.getId());
-            statement.executeUpdate();
+            throw e;
+        } finally {
+            em.close();
         }
     }
 
     @Override
-    public void deleteEmployeeById(Long id) throws SQLException {
-        try (Connection connection = ConnectionManager.getConnection();
-             PreparedStatement statement = connection.prepareStatement(DELETE)) {
-            statement.setLong(1, id);
-            statement.executeUpdate();
+    public void deleteEmployeeById(Long id) {
+        EntityManager em = emf.createEntityManager();
+        EntityTransaction tx = em.getTransaction();
+        try {
+            tx.begin();
+            Employee employee = em.find(Employee.class, id);
+            em.remove(employee);
+            tx.commit();
+        } catch (Exception e) {
+            if (tx != null && tx.isActive()) {
+                tx.rollback();
+            }
+            throw e;
+        } finally {
+            em.close();
         }
-    }
-
-    private Employee createEmployeeFromResultSet(ResultSet resultSet) throws SQLException {
-        Long id = resultSet.getLong("id");
-        String firstName = resultSet.getString("first_name");
-        String lastName = resultSet.getString("last_name");
-        String gender = resultSet.getString("gender");
-        Integer age = resultSet.getInt("age");
-        Long cityId = resultSet.getLong("city_id");
-        String cityName = resultSet.getString("city_name");
-        City city = new City(cityId, cityName);
-        return new Employee(id, firstName, lastName, gender, age, city);
     }
 }
