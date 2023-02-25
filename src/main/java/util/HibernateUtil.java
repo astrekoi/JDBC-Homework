@@ -1,36 +1,18 @@
 package util;
 
-import model.City;
-import model.Employee;
-import org.hibernate.SessionFactory;
-import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
-import org.hibernate.cfg.Configuration;
+import javax.persistence.EntityManagerFactory;
+import javax.persistence.Persistence;
 
 public class HibernateUtil {
-    private static SessionFactory sessionFactory;
+    private static final String PERSISTENCE_UNIT_NAME = "MyDB";
+    private static EntityManagerFactory entityManagerFactory;
 
     private HibernateUtil() {}
 
-    private static SessionFactory buildSessionFactory() {
-        try {
-            Configuration configuration = new Configuration().configure();
-            configuration.addAnnotatedClass(Employee.class);
-            configuration.addAnnotatedClass(City.class);
-            StandardServiceRegistryBuilder builder = new StandardServiceRegistryBuilder().applySettings(configuration.getProperties());
-            sessionFactory = configuration.buildSessionFactory(builder.build());
-
-        } catch (Exception e) {
-            System.err.println("Initial SessionFactory creation failed." + e);
-            throw new ExceptionInInitializerError(e);
+    public static EntityManagerFactory getEntityManagerFactory() {
+        if (entityManagerFactory == null) {
+            entityManagerFactory = Persistence.createEntityManagerFactory(PERSISTENCE_UNIT_NAME);
         }
-
-        return sessionFactory;
-    }
-
-    public static SessionFactory getSessionFactory() {
-        if (sessionFactory == null) {
-            sessionFactory = buildSessionFactory();
-        }
-        return sessionFactory;
+        return entityManagerFactory;
     }
 }
